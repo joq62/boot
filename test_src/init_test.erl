@@ -86,6 +86,7 @@ first_node()->
 		    [DepId|_]=[Id||{Id,_Name,_Vsn,PodSpecs,Affinity,_Status}<-db_deployment:read_all(),
 					     [{"controller","1.0.0"}]=:=PodSpecs,
 					     [FirstHostId]=:=Affinity],
+		    io:format("DepId ~p~n",[{DepId,?MODULE,?FUNCTION_NAME,?LINE}]),
 		    %AppDir=db_host:application_dir(FirstHostId),
 		    PodDir="boot_loader",
 		    NodeName="boot",
@@ -93,6 +94,7 @@ first_node()->
 		    {App,Vsn,GitPath}=db_service_catalog:read({boot,"1.0.0"}),
 		    ok=pod:load_app(Pod,PodDir,{App,Vsn,GitPath}),
 		    Res=rpc:call(Pod,boot_loader,start,[DepId,FirstHostId],2*5*1000),
+		    io:format("mnesia,system_info,()~p~n",[{rpc:call(Pod,mnesia,system_info,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
 		    io:format("Res ~p~n",[{Res,?MODULE,?FUNCTION_NAME,?LINE}]),
 		    io:format("sd:all()~p~n",[{rpc:call(Pod,sd,all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
 		    ok
