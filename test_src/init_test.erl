@@ -81,11 +81,22 @@ first_node()->
 	       {error,StartRes}->
 		   {error,StartRes};
 	       {ok,HostIdNodesList}-> %[{HostId,HostNode}]
-		    true=lists:keymember(FirstHostId,1,HostIdNodesList),
-		    %%boot_loader
-		    
-		    
-	   end,
+		    {FirstHostId,FirstNode}=lists:keyfind(FirstHostId,1,HostIdNodesList),
+		    %% Start Controller OaM load boot_loader
+		    [DepId|_]=[Id||{Id,_Name,_Vsn,PodSpecs,Affinity,_Status}<-db_deployment:read_all(),
+					     [{"controller","1.0.0"}]=:=PodSpecs,
+					     [FirstHostId]=:=Affinity],
+		    %AppDir=db_host:application_dir(FirstHostId),
+		    PodDir="boot_loader",
+		    NodeName="boot",
+		    {ok,Pod,PodDir}=pod:start_slave(FirstHostId,NodeName,PodDir),
+		    {App,Vsn,GitPath}=db_service_catalog:read({boot,"1.0.0"}),
+		    ok=pod:load_app(Pod,PodDir,{App,Vsn,GitPath}),
+		    Res=rpc:call(Pod,boot_loader,start,[DepId,FirstHostId],2*5*1000),
+		    io:format("Res ~p~n",[{Res,?MODULE,?FUNCTION_NAME,?LINE}]),
+		    io:format("sd:all()~p~n",[{rpc:call(Pod,sd,all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		    ok
+	    end,
     Result.
    
 %% --------------------------------------------------------------------
@@ -147,63 +158,3 @@ setup()->
 cleanup()->
   
     ok.
-%% --------------------------------------------------------------------
-%% Function:start/0 
-%% Description: Initiate the eunit tests, set upp needed processes etc
-%% Returns: non
-%% --------------------------------------------------------------------
-
-access_info_all()->
-    
-    A=[{{"c100","host0"},
-	[{hostname,"c100"},
-	 {ip,"192.168.0.100"},
-	 {ssh_port,22},
-	 {uid,"joq62"},
-	 {pwd,"festum01"},
-	 {node,host0@c100}],
-	auto_erl_controller,
-	[{erl_cmd,"/lib/erlang/bin/erl -detached"},
-	 {cookie,"cookie"},
-	 {env_vars,
-	  [{kublet,[{mode,controller}]},
-	   {dbase_infra,[{nodes,[host1@c100,host2@c100]}]},
-	   {bully,[{nodes,[host1@c100,host2@c100]}]}]},
-	 {nodename,"host0"}],
-	["logs"],
-	"applications",stopped},
-       {{"c100","host1"},
-	[{hostname,"c100"},
-	 {ip,"192.168.0.100"},
-	 {ssh_port,22},
-	 {uid,"joq62"},
-	 {pwd,"festum01"},
-	 {node,host1@c100}],
-	auto_erl_controller,
-	[{erl_cmd,"/lib/erlang/bin/erl -detached"},
-	 {cookie,"cookie"},
-	 {env_vars,
-	  [{kublet,[{mode,controller}]},
-	   {dbase_infra,[{nodes,[host0@c100,host2@c100]}]},
-	   {bully,[{nodes,[host0@c100,host2@c100]}]}]},
-	 {nodename,"host1"}],
-	["logs"],
-	"applications",stopped},
-       {{"c100","host2"},
-	[{hostname,"c100"},
-	 {ip,"192.168.0.100"},
-	 {ssh_port,22},
-	 {uid,"joq62"},
-	 {pwd,"festum01"},
-	 {node,host2@c100}],
-	auto_erl_controller,
-	[{erl_cmd,"/lib/erlang/bin/erl -detached"},
-	 {cookie,"cookie"},
-	 {env_vars,
-	  [{kublet,[{mode,controller}]},
-	   {dbase_infra,[{nodes,[host0@c100,host1@c100]}]},
-	   {bully,[{nodes,[host0@c100,host1@c100]}]}]},
-	 {nodename,"host2"}],
-	["logs"],
-	"applications",stopped}],
-    lists:keysort(1,A).

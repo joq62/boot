@@ -17,16 +17,16 @@
 %% --------------------------------------------------------------------
 %-compile(export_all).
 -export([
-	 start/0
+	 start/2
 	]).
 	 
 
 %% ====================================================================
 %% External functions
 %% ====================================================================
-start()->
+start(DepId,HostId)->
     %% 
     ok=application:start(sd),
     ok=application:start(dbase_infra),
-    ok.
+    pod:start_deployment(DepId,HostId).
   
