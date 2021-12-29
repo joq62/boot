@@ -28,9 +28,7 @@ start(DepId,HostId)->
     %% 
     ok=application:start(sd),
     ok=application:start(dbase_infra),
-    db_deployment:read_all().
-
-    %pod:start_deployment(DepId,HostId).
+    pod:start_deployment(DepId,HostId).
   
    % ok.
 start_deployment(DepId,HostId)->      
