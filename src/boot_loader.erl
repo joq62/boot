@@ -28,6 +28,12 @@ start(DepId,HostId)->
     %% 
     ok=application:start(sd),
     ok=application:start(dbase_infra),
+    db_deployment:read_all().
+
+    %pod:start_deployment(DepId,HostId).
+  
+   % ok.
+start_deployment(DepId,HostId)->      
     {ok,DeployInstanceId}=db_deploy_state:create(DepId,[]),
     [PodId]=db_deployment:pod_specs(DepId),
     Result=case pod:start_pod(PodId,HostId,DepId,DeployInstanceId) of
@@ -51,7 +57,3 @@ start(DepId,HostId)->
 		
 	   end,
     Result.
-
-    %pod:start_deployment(DepId,HostId).
-  
-   % ok.
