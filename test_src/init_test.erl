@@ -75,40 +75,86 @@ start()->
 %% Returns: non
 %% -------------------------------------------------------------------
 first_node()->
-    FirstHostId={"c100","host2"},
+   %FirstHostId={"c100","host2"},
   %  io:format("service_catalog ~p~n",[{db_service_catalog:read_all(),?MODULE,?FUNCTION_NAME,?LINE}]),
      Result=case pod:restart_hosts_nodes() of
 	       {error,StartRes}->
 		   {error,StartRes};
 	       {ok,HostIdNodesList}-> %[{HostId,HostNode}]
-		    {FirstHostId,FirstNode}=lists:keyfind(FirstHostId,1,HostIdNodesList),
-		    %% Start Controller OaM load boot_loader
-		    [DepId|_]=[Id||{Id,_Name,_Vsn,PodSpecs,Affinity,_Status}<-db_deployment:read_all(),
-					     [{"controller","1.0.0"}]=:=PodSpecs,
-					     [FirstHostId]=:=Affinity],
-		    io:format("DepId ~p~n",[{DepId,?MODULE,?FUNCTION_NAME,?LINE}]),
-		    %AppDir=db_host:application_dir(FirstHostId),
-		    PodDir="boot_loader",
-		    NodeName="boot",
-		    Cookie=atom_to_list(erlang:get_cookie()),
-		    HostName=db_host:hostname(FirstHostId),
-		    Args="-hidden -setcookie "++Cookie,
-		    {ok,Pod,PodDir}=pod:start_slave(FirstNode,HostName,NodeName,Args,PodDir),
-		  %  {ok,Pod,PodDir}=pod:start_slave(FirstHostId,NodeName,PodDir),
-		    {App,Vsn,GitPath}=db_service_catalog:read({boot,"1.0.0"}),
-		    ok=pod:load_app(Pod,PodDir,{App,Vsn,GitPath}),
-		    {ok,AppInfo}=rpc:call(Pod,boot_loader,start,[DepId,FirstHostId],2*5*1000),
-		    [CtrlNode|_]=[N||{{"controller","1.0.0"},N,_Dir,_App,Vsn}<-AppInfo],
+		    {ok,AppInfo}=load_start_boot_loader(HostIdNodesList),
+		    io:format("AppInfo ~p~n",[{AppInfo,?MODULE,?FUNCTION_NAME,?LINE}]),
+		    [CtrlNode|_]=[N||[{{"controller","1.0.0"},N,_Dir,_App,_Vsn}|_]<-AppInfo],
+		    CtrlNodes=[N||[{{"controller","1.0.0"},N,_Dir,_App,_Vsn}|_]<-AppInfo],
 		    
-		 %   io:format("Res ~p~n",[{Res,?MODULE,?FUNCTION_NAME,?LINE}]),
+		    io:format("CtrlNodes ~p~n",[{CtrlNodes,?MODULE,?FUNCTION_NAME,?LINE}]),
 		    io:format("CtrlNode, sd:all()~p~n",[{rpc:call(CtrlNode,sd,all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
-		    io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
-		    io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
-		   
-		    ok
+		    
+		    WhoIsLeader=[{N,rpc:call(N,bully,who_is_leader,[],5*1000)}||N<-CtrlNodes],
+		    io:format("WhoIsLeader ~p~n",[{WhoIsLeader,?MODULE,?FUNCTION_NAME,?LINE}]),
+		    
+		    io:format("CtrlNode,db_logger,read_all ~p~n",[{rpc:call(CtrlNode,db_logger,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		    Catalog=[{N,rpc:call(N,db_service_catalog,read_all,[],5*1000)}||N<-CtrlNodes],
+		    io:format("Catalog ~p~n",[{Catalog,?MODULE,?FUNCTION_NAME,?LINE}]),
+		 %   io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		   ok
+
 	    end,
     Result.
+
+load_start_boot_loader(HostIdNodesList)->
+    load_start_boot_loader(HostIdNodesList,[]).
+
+load_start_boot_loader([],StartRes)->
+    Res=[{error,Reason}||{error,Reason}<-StartRes],
+    case Res of
+	[]->
+	    {ok,[AppInfo||{ok,AppInfo}<-StartRes]};
+	Reason->
+	    {error,Reason}
+    end;
+
+load_start_boot_loader([{HostId,HostNode}|T],Acc)->
+		    %% Start Controller OaM load boot_loader
+    ControllerDepIdList=[Id||{Id,_Name,_Vsn,PodSpecs,Affinity,_Status}<-db_deployment:read_all(),
+			     [{"controller","1.0.0"}]=:=PodSpecs,
+			     [HostId]=:=Affinity],
+    LoadStartRes=case ControllerDepIdList of
+		     []->
+			 WorkerDepIdList=[Id||{Id,_Name,_Vsn,PodSpecs,Affinity,_Status}<-db_deployment:read_all(),
+					      [{"worker","1.0.0"}]=:=PodSpecs,
+					      [HostId]=:=Affinity],
+			 case WorkerDepIdList of
+			     []->
+				 {error,[no_deployment,HostId,HostNode]};
+			     [DepId|_]->
+				 start_boot_loader(HostId,HostNode,DepId)
+			 end;
+		     [DepId|_]->
+			 start_boot_loader(HostId,HostNode,DepId)
+		 end,
+    NewAcc=[LoadStartRes|Acc],
+    load_start_boot_loader(T,NewAcc).	
+
    
+start_boot_loader(HostId,HostNode,DepId)->    
+    io:format("HostId,HostNode,DepId ~p~n",[{HostId,HostNode,DepId,?MODULE,?FUNCTION_NAME,?LINE}]),
+    %AppDir=db_host:application_dir(FirstHostId),
+    PodDir="boot_loader",
+    NodeName="boot",
+    Cookie=atom_to_list(erlang:get_cookie()),
+    HostName=db_host:hostname(HostId),
+    Args="-hidden -setcookie "++Cookie,
+    {ok,Pod,PodDir}=pod:start_slave(HostNode,HostName,NodeName,Args,PodDir),
+    {App,Vsn,GitPath}=db_service_catalog:read({boot,"1.0.0"}),
+    ok=pod:load_app(Pod,PodDir,{App,Vsn,GitPath}),
+    {ok,AppInfo}=rpc:call(Pod,boot_loader,start,[DepId,HostId],4*5*1000),
+    rpc:call(Pod,init,stop,[],5*1000),
+    rpc:call(HostNode,os,cmd,["rm -rf "++PodDir],5*1000),
+    timer:sleep(500),
+    {ok,AppInfo}.
+  
+    
+    
 %% --------------------------------------------------------------------
 %% Function:start/0 
 %% Description: Initiate the eunit tests, set upp needed processes etc
