@@ -97,10 +97,14 @@ first_node()->
 		  %  {ok,Pod,PodDir}=pod:start_slave(FirstHostId,NodeName,PodDir),
 		    {App,Vsn,GitPath}=db_service_catalog:read({boot,"1.0.0"}),
 		    ok=pod:load_app(Pod,PodDir,{App,Vsn,GitPath}),
-		    Res=rpc:call(Pod,boot_loader,start,[DepId,FirstHostId],2*5*1000),
-		    io:format("mnesia,system_info,()~p~n",[{rpc:call(Pod,mnesia,system_info,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
-		    io:format("Res ~p~n",[{Res,?MODULE,?FUNCTION_NAME,?LINE}]),
-		    io:format("sd:all()~p~n",[{rpc:call(Pod,sd,all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		    {ok,AppInfo}=rpc:call(Pod,boot_loader,start,[DepId,FirstHostId],2*5*1000),
+		    [CtrlNode|_]=[N||{{"controller","1.0.0"},N,_Dir,_App,Vsn}<-AppInfo],
+		    
+		 %   io:format("Res ~p~n",[{Res,?MODULE,?FUNCTION_NAME,?LINE}]),
+		    io:format("CtrlNode, sd:all()~p~n",[{rpc:call(CtrlNode,sd,all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		    io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		    io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
+		   
 		    ok
 	    end,
     Result.
