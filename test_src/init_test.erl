@@ -32,9 +32,9 @@ start()->
     ok=setup(),
   %  io:format("~p~n",[{"Stop setup",?MODULE,?FUNCTION_NAME,?LINE}]),
 
-%    io:format("~p~n",[{"Start first_node()",?MODULE,?FUNCTION_NAME,?LINE}]),
-    ok=first_node(),
-    io:format("~p~n",[{"Stop first_node()",?MODULE,?FUNCTION_NAME,?LINE}]),
+%    io:format("~p~n",[{"Start load_all()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok=load_all(),
+    io:format("~p~n",[{"Stop load_all()",?MODULE,?FUNCTION_NAME,?LINE}]),
 
  %   io:format("~p~n",[{"Start add_node()",?MODULE,?FUNCTION_NAME,?LINE}]),
  %   ok=add_node(),
@@ -74,7 +74,7 @@ start()->
 %% Description: Initiate the eunit tests, set upp needed processes etc
 %% Returns: non
 %% -------------------------------------------------------------------
-first_node()->
+load_all()->
    %FirstHostId={"c100","host2"},
   %  io:format("service_catalog ~p~n",[{db_service_catalog:read_all(),?MODULE,?FUNCTION_NAME,?LINE}]),
      Result=case pod:restart_hosts_nodes() of
@@ -95,6 +95,9 @@ first_node()->
 		    io:format("CtrlNode,db_logger,read_all ~p~n",[{rpc:call(CtrlNode,db_logger,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
 		    Catalog=[{N,rpc:call(N,db_service_catalog,read_all,[],5*1000)}||N<-CtrlNodes],
 		    io:format("Catalog ~p~n",[{Catalog,?MODULE,?FUNCTION_NAME,?LINE}]),
+
+		    DeployState=[{N,rpc:call(N,db_deploy_state,read_all,[],5*1000)}||N<-CtrlNodes],
+		    io:format("DeployState ~p~n",[{DeployState,?MODULE,?FUNCTION_NAME,?LINE}]),
 		 %   io:format("CtrlNode,db_deploy_state,read_all ~p~n",[{rpc:call(CtrlNode,db_deploy_state,read_all,[],2*5*1000),?MODULE,?FUNCTION_NAME,?LINE}]),
 		   ok
 
