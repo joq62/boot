@@ -83,7 +83,7 @@ load_first()->
 		     {ok,_HostIdNodesList}-> %[{HostId,HostNode}]
 			 FirstHostId={"c100","host1"},
 			 FirstHostNode=db_host:node(FirstHostId),
-			 load_start_boot_loader([{FirstHostId,FirstHostNode}])
+			 pod:load_start_boot_loader([{FirstHostId,FirstHostNode}])
 		 end,
     io:format("AppInfo ~p~n",[{AppInfo,?MODULE,?FUNCTION_NAME,?LINE}]),
     ok.

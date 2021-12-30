@@ -28,5 +28,4 @@ start(DepId,HostId)->
     %% 
     ok=application:start(sd),
     ok=application:start(dbase_infra),
-    pod:start_deployment(DepId,HostId),
-    init:stop().
+    pod:start_deployment(DepId,HostId).
