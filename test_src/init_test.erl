@@ -32,6 +32,10 @@ start()->
     ok=setup(),
   %  io:format("~p~n",[{"Stop setup",?MODULE,?FUNCTION_NAME,?LINE}]),
 
+%    io:format("~p~n",[{"Start load_first()",?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok=load_first(),
+    io:format("~p~n",[{"Stop load_first()",?MODULE,?FUNCTION_NAME,?LINE}]),
+
 %    io:format("~p~n",[{"Start load_all()",?MODULE,?FUNCTION_NAME,?LINE}]),
     ok=load_all(),
     io:format("~p~n",[{"Stop load_all()",?MODULE,?FUNCTION_NAME,?LINE}]),
@@ -67,14 +71,30 @@ start()->
     io:format("------>"++atom_to_list(?MODULE)++" ENDED SUCCESSFUL ---------"),
     ok.
 
-
-
+%% --------------------------------------------------------------------
+%% Function:start/0 
+%% Description: Initiate the eunit tests, set upp needed processes etc
+%% Returns: non
+%% -------------------------------------------------------------------
+load_first()->
+    {ok,AppInfo}=case pod:restart_hosts_nodes() of
+		     {error,StartRes}->
+			 {error,StartRes};
+		     {ok,_HostIdNodesList}-> %[{HostId,HostNode}]
+			 FirstHostId={"c100","host1"},
+			 FirstHostNode=db_host:node(FirstHostId),
+			 load_start_boot_loader([{FirstHostId,FirstHostNode}])
+		 end,
+    io:format("AppInfo ~p~n",[{AppInfo,?MODULE,?FUNCTION_NAME,?LINE}]),
+    ok.
+		    
 %% --------------------------------------------------------------------
 %% Function:start/0 
 %% Description: Initiate the eunit tests, set upp needed processes etc
 %% Returns: non
 %% -------------------------------------------------------------------
 load_all()->
+   
    %FirstHostId={"c100","host2"},
   %  io:format("service_catalog ~p~n",[{db_service_catalog:read_all(),?MODULE,?FUNCTION_NAME,?LINE}]),
      Result=case pod:restart_hosts_nodes() of
@@ -188,20 +208,6 @@ start_boot_loader(HostId,HostNode,DepId)->
 %% Returns: non
 %% -------------------------------------------------------------------
     
-%get_nodes()->
- %   [host1@c100,host2@c100,host3@c100,host4@c100].
-    
-%start_slave(NodeName)->
- %   HostId=net_adm:localhost(),
-  %  Node=list_to_atom(NodeName++"@"++HostId),
-   % rpc:call(Node,init,stop,[]),
-    
-   % Cookie=atom_to_list(erlang:get_cookie()),
-   % gl=Cookie,
-  %  Args="-pa ebin -setcookie "++Cookie,
-  %  io:format("Node Args ~p~n",[{Node,Args}]),
-  %  {ok,Node}=slave:start(HostId,NodeName,Args).
-
 setup()->
     ok=application:start(sd),
     ok=application:start(dbase_infra),
